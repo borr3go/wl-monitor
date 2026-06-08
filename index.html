@@ -23,7 +23,6 @@
     flex-direction: column;
   }
 
-  /* HEADER */
   .header {
     background: #c8102e;
     padding: 0 24px;
@@ -56,7 +55,6 @@
     letter-spacing: 2px;
   }
 
-  /* COL HEADERS */
   .col-header {
     display: grid;
     grid-template-columns: 80px 1fr 200px;
@@ -75,7 +73,6 @@
   }
   .col-header span:last-child { text-align: right; }
 
-  /* ROWS — llenan el espacio restante */
   .rows {
     flex: 1;
     display: flex;
@@ -142,7 +139,6 @@
   .cnt-ok   { color: #33cc33; }
   .cnt-far  { color: #666; }
 
-  /* FOOTER */
   .footer {
     background: #111;
     height: 30px;
@@ -181,9 +177,6 @@
     flex-shrink: 0;
   }
 
-  .msg { padding: 20px 24px; color: #444; font-size: 15px; }
-  .err { padding: 16px 24px; color: #ff6666; background: #1a0000; border-left: 3px solid #c8102e; font-size: 13px; }
-
   .loading-screen {
     flex: 1;
     display: flex;
@@ -210,6 +203,7 @@
     animation: spin 0.9s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .err { padding: 16px 24px; color: #ff6666; background: #1a0000; border-left: 3px solid #c8102e; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -249,9 +243,11 @@
 </div>
 
 <script>
-const API   = '/departures';
+const RBL   = 4586;
 const LINES = ['1', '4A'];
-let timer   = null;
+const WL_URL = `https://www.wienerlinien.at/ogd_realtime/monitor?rbl=${RBL}&activateTrafficInfo=stoerungkurz`;
+const PROXY  = 'https://corsproxy.io/?url=';
+let timer = null;
 
 function cntClass(n) {
   if (n <= 1)  return 'cnt-now';
@@ -259,18 +255,11 @@ function cntClass(n) {
   if (n <= 12) return 'cnt-ok';
   return 'cnt-far';
 }
-
 function badgeClass(type, name) {
   if (type === 'ptTram')  return 'tram';
   if (type === 'ptMetro') return 'metro';
   if (name && name[0] === 'N') return 'night';
   return 'bus';
-}
-
-function cntDisp(d, mainCls, nextCls) {
-  if (!d) return '';
-  if (d.cnt === 0) return `<span class="${mainCls}" style="font-size:36px;color:#ff3333">jetzt</span>`;
-  return `<span class="${mainCls}">${d.cnt}<span class="${nextCls === 'cnt-unit-next' ? 'cnt-unit-next' : 'cnt-unit'}">min</span></span>`;
 }
 
 function render(data) {
@@ -290,9 +279,7 @@ function render(data) {
       if (!LINES.includes(line.name)) return;
       if (!byLine[line.name]) byLine[line.name] = { line, deps: [] };
       (line.departures?.departure || []).forEach(dep => {
-        byLine[line.name].deps.push({
-          cnt: dep.departureTime?.countdown ?? 999,
-        });
+        byLine[line.name].deps.push({ cnt: dep.departureTime?.countdown ?? 999 });
       });
     });
   });
@@ -342,7 +329,7 @@ async function load(attempt) {
   document.getElementById('status-text').textContent = 'Aktualisiere...';
 
   try {
-    const resp = await fetch(API);
+    const resp = await fetch(PROXY + encodeURIComponent(WL_URL));
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     render(data);
@@ -353,20 +340,17 @@ async function load(attempt) {
     timer = setTimeout(() => load(1), 60000);
 
   } catch(e) {
-    // mientras despierta el servidor, reintenta cada 3 segundos (máx 20 intentos = ~60s)
-    if (attempt <= 20) {
-      const loadingText = document.getElementById('loading-text');
-      if (loadingText) loadingText.textContent = `Verbinde... (${attempt}/20)`;
-      document.getElementById('status-text').textContent = `Warten auf Server...`;
-      document.getElementById('dot').style.background = '#ffaa00';
+    if (attempt <= 5) {
+      const lt = document.getElementById('loading-text');
+      if (lt) lt.textContent = `Verbinde... (${attempt}/5)`;
+      document.getElementById('status-text').textContent = 'Verbinde...';
       clearTimeout(timer);
-      timer = setTimeout(() => load(attempt + 1), 3000);
+      timer = setTimeout(() => load(attempt + 1), 4000);
     } else {
       document.getElementById('dot').style.background = '#ff3333';
-      document.getElementById('status-text').textContent = 'Verbindungsfehler';
+      document.getElementById('status-text').textContent = 'Fehler';
       document.getElementById('rows').innerHTML =
-        `<div class="err">Server nicht erreichbar.<br><small>${e.message}</small></div>`;
-      // reintenta cada 30s por si acaso
+        `<div class="err">Verbindung fehlgeschlagen.<br><small>${e.message}</small></div>`;
       clearTimeout(timer);
       timer = setTimeout(() => load(1), 30000);
     }
