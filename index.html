@@ -248,7 +248,6 @@ const LINES  = ['1', '4A'];
 const WL_URL = `https://www.wienerlinien.at/ogd_realtime/monitor?rbl=${RBL}&activateTrafficInfo=stoerungkurz`;
 const PROXY  = 'https://corsproxy.io/?url=';
 let timer    = null;
-
 function cntClass(n) {
   if (n <= 1)  return 'cnt-now';
   if (n <= 4)  return 'cnt-soon';
@@ -319,39 +318,30 @@ function render(data) {
   }
 }
 
-async function load(attempt) {
-  attempt = attempt || 1;
+async function load() {
   document.getElementById('dot').style.background = '#ffaa00';
-  document.getElementById('status-text').textContent = 'Aktualisiere...';
 
   try {
     const resp = await fetch(PROXY + encodeURIComponent(WL_URL));
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
+
+    if (!data?.data?.monitors?.length) throw new Error('Sin datos');
+
     render(data);
     document.getElementById('status-text').textContent =
       'Aktualisiert ' + new Date().toLocaleTimeString('de-AT');
     document.getElementById('dot').style.background = '#33cc33';
-    clearTimeout(timer);
-    timer = setTimeout(() => load(1), 30000); // refresca cada 30s
 
   } catch(e) {
-    if (attempt <= 5) {
-      const lt = document.getElementById('loading-text');
-      if (lt) lt.textContent = `Verbinde... (${attempt}/5)`;
-      document.getElementById('status-text').textContent = 'Verbinde...';
-      clearTimeout(timer);
-      timer = setTimeout(() => load(attempt + 1), 4000);
-    } else {
-      document.getElementById('dot').style.background = '#ff3333';
-      document.getElementById('status-text').textContent = 'Fehler';
-      document.getElementById('rows').innerHTML =
-        `<div class="err">Verbindung fehlgeschlagen.<br><small>${e.message}</small></div>`;
-      clearTimeout(timer);
-      timer = setTimeout(() => load(1), 30000);
-    }
+    document.getElementById('dot').style.background = '#ff3333';
+    document.getElementById('status-text').textContent =
+      'Fehler ' + new Date().toLocaleTimeString('de-AT') + ' · ' + e.message.slice(0, 40);
   }
 }
+
+// refresco cada 30s — setInterval es más fiable que setTimeout recursivo
+setInterval(load, 30000);
 
 setInterval(() => {
   document.getElementById('clock').textContent =
