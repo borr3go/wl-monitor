@@ -1,0 +1,9 @@
+{
+  "name": "wl-monitor",
+  "version": "1.0.0",
+  "description": "Wiener Linien Abfahrtsmonitor",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
