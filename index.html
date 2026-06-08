@@ -243,11 +243,44 @@
 </div>
 
 <script>
-const RBL   = 171;
-const LINES = ['1', '4A'];
+const RBL    = 171;
+const LINES  = ['1', '4A'];
 const WL_URL = `https://www.wienerlinien.at/ogd_realtime/monitor?rbl=${RBL}&activateTrafficInfo=stoerungkurz`;
 const PROXY  = 'https://corsproxy.io/?url=';
-let timer = null;
+let timer    = null;
+
+// estado local de countdowns para decrementar cada minuto
+let state = {}; // { '1': { cnt1, cnt2, bc, towards }, '4A': { ... } }
+let lastFetch = null; // timestamp del último fetch exitoso
+
+function cntDisp(cnt, mainClass, nextClass) {
+  if (cnt <= 0) return `<span class="${mainClass} cnt-now" style="font-size:36px">jetzt</span>`;
+  return `<span class="${mainClass} ${cntClass(cnt)}">${cnt}<span class="${nextClass === 'next' ? 'cnt-unit-next' : 'cnt-unit'}">min</span></span>`;
+}
+
+function redraw() {
+  LINES.forEach(name => {
+    const s = state[name];
+    if (!s) return;
+    const col = document.getElementById('cnt-' + name);
+    if (!col) return;
+    const f = cntDisp(s.cnt1, 'cnt-main', 'main');
+    const sec = s.cnt2 !== null ? cntDisp(s.cnt2, 'cnt-next', 'next') : '';
+    col.innerHTML = f + sec;
+  });
+}
+
+// tick cada 60 segundos: decrementa los contadores localmente
+setInterval(() => {
+  let changed = false;
+  LINES.forEach(name => {
+    const s = state[name];
+    if (!s) return;
+    if (s.cnt1 > 0) { s.cnt1--; changed = true; }
+    if (s.cnt2 !== null && s.cnt2 > 0) { s.cnt2--; changed = true; }
+  });
+  if (changed) redraw();
+}, 60000);
 
 function cntClass(n) {
   if (n <= 1)  return 'cnt-now';
@@ -285,31 +318,29 @@ function render(data) {
   });
   Object.values(byLine).forEach(e => e.deps.sort((a, b) => a.cnt - b.cnt));
 
-  let html = '';
+  // guardar estado global para el tick local
+  state = {};
   LINES.forEach(name => {
     const entry = byLine[name];
     if (!entry) return;
-    const { line, deps } = entry;
-    const bc     = badgeClass(line.type, line.name);
-    const first  = deps[0];
-    const second = deps[1];
+    state[name] = {
+      cnt1:    entry.deps[0]?.cnt ?? 0,
+      cnt2:    entry.deps[1]?.cnt ?? null,
+      bc:      badgeClass(entry.line.type, entry.line.name),
+      towards: entry.line.towards || '',
+    };
+  });
 
-    const fDisp = first
-      ? (first.cnt === 0
-          ? `<span class="cnt-main cnt-now" style="font-size:36px">jetzt</span>`
-          : `<span class="cnt-main ${cntClass(first.cnt)}">${first.cnt}<span class="cnt-unit">min</span></span>`)
-      : '';
-
-    const sDisp = second
-      ? (second.cnt === 0
-          ? `<span class="cnt-next cnt-now">jetzt</span>`
-          : `<span class="cnt-next ${cntClass(second.cnt)}">${second.cnt}<span class="cnt-unit-next">min</span></span>`)
-      : '';
-
+  let html = '';
+  LINES.forEach(name => {
+    const s = state[name];
+    if (!s) return;
+    const f   = cntDisp(s.cnt1, 'cnt-main', 'main');
+    const sec = s.cnt2 !== null ? cntDisp(s.cnt2, 'cnt-next', 'next') : '';
     html += `<div class="row">
-      <div><span class="badge ${bc}">${line.name}</span></div>
-      <div class="towards">${line.towards || ''}</div>
-      <div class="cnt-col">${fDisp}${sDisp}</div>
+      <div><span class="badge ${s.bc}">${name}</span></div>
+      <div class="towards">${s.towards}</div>
+      <div class="cnt-col" id="cnt-${name}">${f}${sec}</div>
     </div>`;
   });
 
@@ -337,7 +368,7 @@ async function load(attempt) {
       'Aktualisiert ' + new Date().toLocaleTimeString('de-AT');
     document.getElementById('dot').style.background = '#33cc33';
     clearTimeout(timer);
-    timer = setTimeout(() => load(1), 60000);
+    timer = setTimeout(() => load(1), 30000); // refresca cada 30s
 
   } catch(e) {
     if (attempt <= 5) {
