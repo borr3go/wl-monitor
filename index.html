@@ -6,7 +6,7 @@
 <title>Löwengasse – Abfahrtsmonitor</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
+ 
   html, body {
     width: 960px;
     height: 480px;
@@ -14,7 +14,7 @@
     background: #111;
     font-family: Arial, sans-serif;
   }
-
+ 
   .board {
     width: 960px;
     height: 480px;
@@ -22,7 +22,7 @@
     display: flex;
     flex-direction: column;
   }
-
+ 
   .header {
     background: #c8102e;
     padding: 0 24px;
@@ -54,7 +54,7 @@
     font-family: 'Courier New', monospace;
     letter-spacing: 2px;
   }
-
+ 
   .col-header {
     display: grid;
     grid-template-columns: 80px 1fr 200px;
@@ -72,7 +72,7 @@
     letter-spacing: 1.5px;
   }
   .col-header span:last-child { text-align: right; }
-
+ 
   .rows {
     flex: 1;
     display: flex;
@@ -87,7 +87,7 @@
     border-bottom: 1px solid #222;
   }
   .row:last-child { border-bottom: none; }
-
+ 
   .badge {
     display: inline-flex;
     align-items: center;
@@ -102,7 +102,7 @@
   .bus   { background: #3d7abf; color: white; }
   .metro { background: #6b4fb5; color: white; }
   .night { background: #1e3d6e; color: white; }
-
+ 
   .towards {
     color: #e0e0e0;
     font-size: 24px;
@@ -111,7 +111,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
+ 
   .cnt-col {
     display: flex;
     align-items: baseline;
@@ -133,12 +133,12 @@
   }
   .cnt-unit      { font-size: 14px; color: #555; margin-left: 3px; }
   .cnt-unit-next { font-size: 10px; margin-left: 2px; opacity: 0.6; }
-
+ 
   .cnt-now  { color: #ff3333; }
   .cnt-soon { color: #ffaa00; }
   .cnt-ok   { color: #33cc33; }
   .cnt-far  { color: #666; }
-
+ 
   .footer {
     background: #111;
     height: 30px;
@@ -164,7 +164,7 @@
     flex-shrink: 0;
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
-
+ 
   .disruption {
     background: #1e1400;
     border-left: 3px solid #ffaa00;
@@ -176,7 +176,7 @@
     color: #ffaa00;
     flex-shrink: 0;
   }
-
+ 
   .loading-screen {
     flex: 1;
     display: flex;
@@ -207,7 +207,7 @@
 </style>
 </head>
 <body>
-
+ 
 <div class="board">
   <div class="header">
     <div class="header-left">
@@ -216,13 +216,13 @@
     </div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
-
+ 
   <div class="col-header">
     <span>Linie</span>
     <span style="padding-left:16px">Richtung</span>
     <span>Min</span>
   </div>
-
+ 
   <div id="rows" class="rows">
     <div class="loading-screen">
       <div class="loading-logo">WL</div>
@@ -230,9 +230,9 @@
       <div class="loading-text" id="loading-text">Verbinde mit Wiener Linien...</div>
     </div>
   </div>
-
+ 
   <div id="disruption-bar" style="display:none" class="disruption"></div>
-
+ 
   <div class="footer">
     <div class="status">
       <div class="dot" id="dot"></div>
@@ -241,7 +241,7 @@
     <span style="font-size:11px;color:#333">RBL 4586</span>
   </div>
 </div>
-
+ 
 <script>
 const RBL    = 171;
 const LINES  = ['1', '4A'];
@@ -260,18 +260,18 @@ function badgeClass(type, name) {
   if (name && name[0] === 'N') return 'night';
   return 'bus';
 }
-
+ 
 function render(data) {
   const monitors    = data?.data?.monitors || [];
   const disruptions = data?.data?.trafficInfos || [];
   const rowsEl      = document.getElementById('rows');
   const disruptEl   = document.getElementById('disruption-bar');
-
+ 
   if (!monitors.length) {
     rowsEl.innerHTML = '<div class="err">Keine Daten verfügbar.</div>';
     return;
   }
-
+ 
   const byLine = {};
   monitors.forEach(m => {
     (m.lines || []).forEach(line => {
@@ -283,7 +283,7 @@ function render(data) {
     });
   });
   Object.values(byLine).forEach(e => e.deps.sort((a, b) => a.cnt - b.cnt));
-
+ 
   let html = '';
   LINES.forEach(name => {
     const entry = byLine[name];
@@ -292,24 +292,24 @@ function render(data) {
     const bc     = badgeClass(line.type, line.name);
     const first  = deps[0];
     const second = deps[1];
-
+ 
     const fDisp = !first ? '' : first.cnt <= 0
       ? `<span class="cnt-main cnt-now" style="font-size:36px">jetzt</span>`
       : `<span class="cnt-main ${cntClass(first.cnt)}">${first.cnt}<span class="cnt-unit">min</span></span>`;
-
+ 
     const sDisp = !second ? '' : second.cnt <= 0
       ? `<span class="cnt-next cnt-now">jetzt</span>`
       : `<span class="cnt-next ${cntClass(second.cnt)}">${second.cnt}<span class="cnt-unit-next">min</span></span>`;
-
+ 
     html += `<div class="row">
       <div><span class="badge ${bc}">${name}</span></div>
       <div class="towards">${line.towards || ''}</div>
       <div class="cnt-col">${fDisp}${sDisp}</div>
     </div>`;
   });
-
+ 
   rowsEl.innerHTML = html;
-
+ 
   if (disruptions.length) {
     disruptEl.textContent = '⚠ ' + (disruptions[0].title || 'Störung aktiv');
     disruptEl.style.display = 'flex';
@@ -317,37 +317,37 @@ function render(data) {
     disruptEl.style.display = 'none';
   }
 }
-
+ 
 async function load() {
   document.getElementById('dot').style.background = '#ffaa00';
-
+ 
   try {
     const resp = await fetch(PROXY + encodeURIComponent(WL_URL));
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-
+ 
     if (!data?.data?.monitors?.length) throw new Error('Sin datos');
-
+ 
     render(data);
     document.getElementById('status-text').textContent =
       'Aktualisiert ' + new Date().toLocaleTimeString('de-AT');
     document.getElementById('dot').style.background = '#33cc33';
-
+ 
   } catch(e) {
     document.getElementById('dot').style.background = '#ff3333';
     document.getElementById('status-text').textContent =
       'Fehler ' + new Date().toLocaleTimeString('de-AT') + ' · ' + e.message.slice(0, 40);
   }
 }
-
+ 
 // refresco cada 30s — setInterval es más fiable que setTimeout recursivo
 setInterval(load, 30000);
-
+ 
 setInterval(() => {
   document.getElementById('clock').textContent =
     new Date().toLocaleTimeString('de-AT');
 }, 1000);
-
+ 
 load();
 </script>
 </body>
